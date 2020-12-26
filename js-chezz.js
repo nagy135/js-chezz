@@ -9,34 +9,7 @@ class Player {
     constructor(color, ctx){
         this.ctx = ctx;
         this.color = color;
-        if (color == 'black'){
-            this.pieces = {
-                king: new King(ctx, 4,0),
-                queen: new Queen(ctx, 3,0),
-                rookL: new Rook(ctx, 0,0),
-                rookR: new Rook(ctx, 7,0),
-                bishopL: new Bishop(ctx, 2,0),
-                bishopR: new Bishop(ctx, 5,0),
-                knightL: new Knight(ctx, 1,0),
-                knightR: new Knight(ctx, 6,0),
-                pawns: []
-            };
-        } else {
-            this.pieces = {
-                king: new King(ctx, 4,7),
-                queen: new Queen(ctx, 3,7),
-                rookL: new Rook(ctx, 0,7),
-                rookR: new Rook(ctx, 7,7),
-                bishopL: new Bishop(ctx, 2,7),
-                bishopR: new Bishop(ctx, 5,7),
-                knightL: new Knight(ctx, 1,7),
-                knightR: new Knight(ctx, 6,7),
-                pawns: []
-            };
-        }
-        const pawnY = (color == 'black') ? 1 : 6;
-        for (var i = 0; i < size; i++)
-            this.pieces.pawns.push(new Pawn(ctx, i, pawnY));
+        this.enemy = null;
     }
     draw(){
         const colorBit = (this.color == 'black') ? 0 : 1;
@@ -51,6 +24,40 @@ class Player {
         this.pieces.bishopR.draw(colorBit);
         for (let pawn of this.pieces.pawns)
             pawn.draw(colorBit);
+
+        console.log(this.pieces.queen.available_moves());
+    }
+    add_enemy(enemy){
+        this.enemy = enemy;
+        if (this.color == 'black'){
+            this.pieces = {
+                king: new King(this.ctx, 4,0, enemy),
+                queen: new Queen(this.ctx, 3,0, enemy),
+                rookL: new Rook(this.ctx, 0,0, enemy),
+                rookR: new Rook(this.ctx, 7,0, enemy),
+                bishopL: new Bishop(this.ctx, 2,0, enemy),
+                bishopR: new Bishop(this.ctx, 5,0, enemy),
+                knightL: new Knight(this.ctx, 1,0, enemy),
+                knightR: new Knight(this.ctx, 6,0, enemy),
+                pawns: []
+            };
+        } else {
+            this.pieces = {
+                king: new King(this.ctx, 4,7, enemy),
+                queen: new Queen(this.ctx, 3,7, enemy),
+                rookL: new Rook(this.ctx, 0,7, enemy),
+                rookR: new Rook(this.ctx, 7,7, enemy),
+                bishopL: new Bishop(this.ctx, 2,7, enemy),
+                bishopR: new Bishop(this.ctx, 5,7, enemy),
+                knightL: new Knight(this.ctx, 1,7, enemy),
+                knightR: new Knight(this.ctx, 6,7, enemy),
+                pawns: []
+            };
+        }
+        const pawnY = (this.color == 'black') ? 1 : 6;
+        const direction = (this.color == 'black') ? 'down' : 'up';
+        for (var i = 0; i < size; i++)
+            this.pieces.pawns.push(new Pawn(this.ctx, i, pawnY, enemy, direction));
     }
 }
 
@@ -80,6 +87,9 @@ class Board {
     create_players(){
         this.player1 = new Player('black', this.ctx);
         this.player2 = new Player('white', this.ctx);
+
+        this.player1.add_enemy(this.player2);
+        this.player2.add_enemy(this.player1);
     }
     draw(){
         this.draw_board();
@@ -89,58 +99,131 @@ class Board {
 }
 
 class Piece {
-    constructor(ctx, x, y){
+    repeats = false;
+    constructor(ctx, x, y, player){
         this.ctx = ctx;
         this.x = x;
         this.y = y;
+        this.player = player;
+        this.label = "";
     }
     draw(color){
         this.ctx.fillStyle = (color == 0) ? black : white;
         this.ctx.fillRect(this.x*square_size + piece_margin, this.y*square_size + piece_margin, piece_size, piece_size);
         this.ctx.strokeRect(this.x*square_size + piece_margin, this.y*square_size + piece_margin, piece_size, piece_size);
+
+        this.ctx.fillStyle = (color == 1) ? black : white;
+        this.ctx.fillText(this.label, this.x*square_size + piece_margin + 7, this.y*square_size + piece_margin + 33);
+    }
+    available_moves(){
+        var result = [];
+        for (var i = 0; i < this.moves.length; i++){
+            if (this.available_move(this.moves[i]))
+                result.push(this.moves[i]);
+        };
+        return result;
+    }
+    available_move(move){
+        const x = move[0];
+        const y = move[1];
+        // borders {{{
+        if (this.x + x < 0)
+            return false;
+        if (this.y + y < 0)
+            return false;
+        if (this.x + x > size - 1)
+            return false;
+        if (this.y + y < size - 1)
+            return false;
+        // }}}
+        console.log(Object.keys(this.player.pieces));
+
+
+        return true;
     }
 }
 
 class King extends Piece {
-    draw(color){
-        super.draw(color);
-        this.ctx.fillStyle = (color == 1) ? black : white;
-        this.ctx.fillText("K", this.x*square_size + piece_margin + 5, this.y*square_size + piece_margin + 33);
-    }
+    label = "K";
+    moves = [
+        [1,1],
+        [1,0],
+        [1,-1],
+        [0,1],
+        [0,0],
+        [0,-1],
+        [-1,-1],
+        [-1,0],
+        [-1,1]
+    ];
 }
 class Queen extends Piece {
-    draw(color){
-        super.draw(color);
-        this.ctx.fillStyle = (color == 1) ? black : white;
-        this.ctx.fillText("Q", this.x*square_size + piece_margin + 5, this.y*square_size + piece_margin + 33);
-    }
+    label = "Q";
+    //the same as king but infinite repeat
+    repeats = true;
+    moves = [
+        [1,1],
+        [1,0],
+        [1,-1],
+        [0,1],
+        [0,0],
+        [0,-1],
+        [-1,-1],
+        [-1,0],
+        [-1,1]
+    ];
 }
 class Rook extends Piece {
-    draw(color){
-        super.draw(color);
-        this.ctx.fillStyle = (color == 1) ? black : white;
-        this.ctx.fillText("R", this.x*square_size + piece_margin + 5, this.y*square_size + piece_margin + 33);
-    }
+    label = "R";
+    repeats = true;
+    moves = [
+        [1,0],
+        [0,1],
+        [-1,0],
+        [0,-1]
+    ];
 }
 class Bishop extends Piece {
-    draw(color){
-        super.draw(color);
-        this.ctx.fillStyle = (color == 1) ? black : white;
-        this.ctx.fillText("B", this.x*square_size + piece_margin + 5, this.y*square_size + piece_margin + 33);
-    }
+    label = "B";
+    repeats = true;
+    moves = [
+        [1,1],
+        [0,0],
+        [-1,1],
+        [1,-1]
+    ];
 }
 class Knight extends Piece {
-    draw(color){
-        super.draw(color);
-        this.ctx.fillStyle = (color == 1) ? black : white;
-        this.ctx.fillText("H", this.x*square_size + piece_margin + 5, this.y*square_size + piece_margin + 33);
-    }
+    label = "H";
+    moves = [
+        [-2,-1],
+        [-2,1],
+        [2,1],
+        [2,-1],
+
+        [1,2],
+        [1,-2],
+        [-1,2],
+        [-1,-2],
+    ];
 }
 class Pawn extends Piece {
-    draw(color){
-        super.draw(color);
-        this.ctx.fillStyle = (color == 1) ? black : white;
-        this.ctx.fillText("P", this.x*square_size + piece_margin + 5, this.y*square_size + piece_margin + 33);
+    label = "P";
+    constructor(ctx, x, y, direction){
+        super(ctx, x, y);
+        this.direction = direction;
+        if (this.direction == 'up')
+            this.moves = [
+                [0, -1],
+                [1, -1],
+                [-1, -1],
+            ];
+        else
+            this.moves = [
+                [0, 1],
+                [1, 1],
+                [-1, 1],
+            ];
     }
 }
 
