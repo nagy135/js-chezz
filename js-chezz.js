@@ -142,18 +142,24 @@ class Piece {
         return result;
     }
     own_reserved_positions(){
-        var owned_positions = [];
-        owned_positions.push([this.player.pieces.king.x, this.player.pieces.king.y]);
-        owned_positions.push([this.player.pieces.queen.x, this.player.pieces.queen.y]);
-        owned_positions.push([this.player.pieces.rookL.x, this.player.pieces.rookL.y]);
-        owned_positions.push([this.player.pieces.rookR.x, this.player.pieces.rookR.y]);
-        owned_positions.push([this.player.pieces.bishopL.x, this.player.pieces.bishopL.y]);
-        owned_positions.push([this.player.pieces.bishopR.x, this.player.pieces.bishopR.y]);
-        owned_positions.push([this.player.pieces.knightL.x, this.player.pieces.knightL.y]);
-        owned_positions.push([this.player.pieces.knightR.x, this.player.pieces.knightR.y]);
-        for (var pawn of this.player.pieces.pawns)
-            owned_positions.push([pawn.x, pawn.y]);
-        return owned_positions;
+        return this.reserved_positions(this.player);
+    }
+    enemy_reserved_positions(){
+        return this.reserved_positions(this.enemy);
+    }
+    reserved_positions(player){
+        var positions = [];
+        positions.push([player.pieces.king.x, player.pieces.king.y]);
+        positions.push([player.pieces.queen.x, player.pieces.queen.y]);
+        positions.push([player.pieces.rookL.x, player.pieces.rookL.y]);
+        positions.push([player.pieces.rookR.x, player.pieces.rookR.y]);
+        positions.push([player.pieces.bishopL.x, player.pieces.bishopL.y]);
+        positions.push([player.pieces.bishopR.x, player.pieces.bishopR.y]);
+        positions.push([player.pieces.knightL.x, player.pieces.knightL.y]);
+        positions.push([player.pieces.knightR.x, player.pieces.knightR.y]);
+        for (var pawn of player.pieces.pawns)
+            positions.push([pawn.x, pawn.y]);
+        return positions;
     }
     available_move(move){
         const x = move[0];
@@ -174,6 +180,17 @@ class Piece {
         const owned_positions = this.own_reserved_positions();
         for (let key in owned_positions){
             const reserved = owned_positions[key];
+            if (this.x + x == reserved[0] && this.y + y == reserved[1])
+                fits = false;
+        };
+        if (!fits)
+            return false;
+        // }}}
+
+        /// {{{ check enemy pieces
+        const enemy_positions = this.enemy_reserved_positions();
+        for (let key in enemy_positions){
+            const reserved = enemy_positions[key];
             if (this.x + x == reserved[0] && this.y + y == reserved[1])
                 fits = false;
         };
