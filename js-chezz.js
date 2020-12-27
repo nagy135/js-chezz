@@ -25,12 +25,6 @@ class Player {
         this.pieces.bishopR.draw(colorBit);
         for (let pawn of this.pieces.pawns)
             pawn.draw(colorBit);
-
-
-        this.ctx.fillStyle = red;
-        for(let move of this.pieces.queen.available_moves()){
-            this.ctx.fillRect(piece_margin + square_size * (this.pieces.queen.x + move[0]), piece_margin + square_size * (this.pieces.queen.y + move[1]), 30,30);
-        }
     }
     init_game(enemy){
         this.enemy = enemy;
@@ -59,10 +53,15 @@ class Player {
                 pawns: []
             };
         }
-        const pawnY = (this.color == 'black') ? 1 : 6;
+        const pawnY = (this.color == 'black') ? 3 : 4;
         const direction = (this.color == 'black') ? 'down' : 'up';
         for (var i = 0; i < size; i++)
             this.pieces.pawns.push(new Pawn(this.ctx, i, pawnY, this, enemy, direction));
+    }
+    activate(x,y){
+        for (var piece of Object.keys(this.pieces))
+            if (this.pieces[piece].x == x && this.pieces[piece].y == y)
+                this.pieces[piece].active = ! this.pieces[piece].active;
     }
 }
 
@@ -96,6 +95,11 @@ class Board {
         this.player1.init_game(this.player2);
         this.player2.init_game(this.player1);
     }
+    activate(x,y){
+        this.player1.activate(x,y);
+        this.player2.activate(x,y);
+        this.draw();
+    }
     draw(){
         this.draw_board();
         this.player1.draw();
@@ -121,12 +125,19 @@ class Piece {
 
         this.ctx.fillStyle = (color == 1) ? black : white;
         this.ctx.fillText(this.label, this.x*square_size + piece_margin + 7, this.y*square_size + piece_margin + 33);
+
+        if (!this.active) return;
+        this.ctx.fillStyle = red;
+        for(let move of this.available_moves()){
+            this.ctx.fillRect(piece_margin + square_size * (this.x + move[0]), piece_margin + square_size * (this.y + move[1]), 30,30);
+        }
     }
     available_moves(){
         var result = [];
-        for (var i = 0; i < this.moves.length; i++){
-            if (this.available_move(this.moves[i]))
-                result.push(this.moves[i]);
+        const moves = this.all_moves();
+        for (var i = 0; i < moves.length; i++){
+            if (this.available_move(moves[i]))
+                result.push(moves[i]);
         };
         return result;
     }
@@ -163,7 +174,6 @@ class Piece {
         const owned_positions = this.own_reserved_positions();
         for (let key in owned_positions){
             const reserved = owned_positions[key];
-            console.log(this.x + x, this.y + y, ' ##### ', reserved);
             if (this.x + x == reserved[0] && this.y + y == reserved[1])
                 fits = false;
         };
@@ -172,6 +182,30 @@ class Piece {
         // }}}
 
         return true;
+    }
+    // overriden in some pieces
+    all_moves(){
+        if (this.repeats)
+            return this.repeating_moves();
+        return this.moves;
+    }
+    repeating_moves(){
+        var repeating_moves = [];
+        for (var move of this.moves){
+            repeating_moves.push(move);
+            var cumulative_x = move[0] + move[0];
+            var cumulative_y = move[1] + move[1];
+            while (this.x + cumulative_x >= 0
+                && this.y + cumulative_y >= 0
+                && this.x + cumulative_x < size 
+                && this.y + cumulative_y < size
+            ){
+                repeating_moves.push([cumulative_x,cumulative_y]);
+                cumulative_x += move[0];
+                cumulative_y += move[1];
+            }
+        };
+        return repeating_moves;
     }
 }
 
@@ -259,6 +293,14 @@ const main = () => {
     var canvas = document.getElementById('canvas');
     if (canvas.getContext) {
         var ctx = canvas.getContext('2d');
+
+        canvas.onclick = function (event)
+        {
+            const x = Math.floor(event.offsetX / square_size);
+            const y = Math.floor(event.offsetY / square_size);
+            board.activate(x,y);
+        }
+
         var board = new Board(ctx);
         board.create_players();
         board.draw();
