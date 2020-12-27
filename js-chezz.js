@@ -253,7 +253,8 @@ class Bishop extends Piece {
     moves = [
         [1,1],
         [-1,1],
-        [1,-1]
+        [1,-1],
+        [-1,-1]
     ];
 }
 class Knight extends Piece {
