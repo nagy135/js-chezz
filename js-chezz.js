@@ -1,6 +1,7 @@
 const square_size = 80;
 const size = 8;
 const piece_size = 40;
+const target_size = 20;
 const piece_margin = square_size / 2 - piece_size / 2;
 const white =  'rgb(255,255,255)';
 const red =  'rgb(200,20,20)';
@@ -53,15 +54,36 @@ class Player {
                 pawns: []
             };
         }
-        const pawnY = (this.color == 'black') ? 3 : 4;
+        const pawnY = (this.color == 'black') ? 1 : 6;
         const direction = (this.color == 'black') ? 'down' : 'up';
         for (var i = 0; i < size; i++)
             this.pieces.pawns.push(new Pawn(this.ctx, i, pawnY, this, enemy, direction));
     }
+    deactivate_all(){
+        for (var piece of Object.keys(this.pieces)){
+            this.pieces[piece].active = false;
+        };
+        for (var piece of this.pieces.pawns)
+            piece.active = false;
+    }
     activate(x,y){
+        var activated = null;
         for (var piece of Object.keys(this.pieces))
-            if (this.pieces[piece].x == x && this.pieces[piece].y == y)
+            if (this.pieces[piece].x == x && this.pieces[piece].y == y){
                 this.pieces[piece].active = ! this.pieces[piece].active;
+                activated = this.pieces[piece];
+            } else {
+                this.pieces[piece].active = false;
+            }
+            
+        for (var piece of this.pieces.pawns)
+            if (piece.x == x && piece.y == y){
+                piece.active = ! piece.active;
+                activated = piece;
+            } else {
+                piece.active = false;
+            }
+        return (activated && activated.active) ? activated : null;
     }
 }
 
@@ -74,6 +96,9 @@ class Board {
 
         this.player1 = null;
         this.player2 = null;
+
+        this.turn = 'white';
+        this.activated = null;
     }
     draw_board(){
         var color = 0;
@@ -95,10 +120,41 @@ class Board {
         this.player1.init_game(this.player2);
         this.player2.init_game(this.player1);
     }
-    activate(x,y){
-        this.player1.activate(x,y);
-        this.player2.activate(x,y);
+    click(x,y){
+        var new_activated = this.player1.activate(x,y);
+        if (!new_activated){
+            new_activated = this.player2.activate(x,y);
+            this.player1.deactivate_all();
+        } else {
+            this.player2.deactivate_all();
+        }
+        if (new_activated){
+            if (new_activated != this.activated)
+                this.activated = new_activated;
+        } else if (this.activated){
+            // we didnt click any piece and one is activated, lets try move
+            this.move(x, y);
+        }
         this.draw();
+    }
+    move(x,y){
+        var player = (this.turn == 'black') ? this.player1 : this.player2;
+        const activated = this.activated;
+        if (activated.enemy.color == player.color){
+            alert('cant move enemy pieces');
+        } else {
+            for(let move of activated.available_moves()){
+                if (activated.x + move[0] == x
+                    && activated.y + move[1] == y){
+                    activated.x = x;
+                    activated.y = y;
+                    activated.active = false;
+                    this.activated = null;
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     draw(){
         this.draw_board();
@@ -129,7 +185,10 @@ class Piece {
         if (!this.active) return;
         this.ctx.fillStyle = red;
         for(let move of this.available_moves()){
-            this.ctx.fillRect(piece_margin + square_size * (this.x + move[0]), piece_margin + square_size * (this.y + move[1]), 30,30);
+            // this.ctx.fillRect(piece_margin + square_size * (this.x + move[0]), piece_margin + square_size * (this.y + move[1]), 30,30);
+            this.ctx.beginPath();
+            this.ctx.arc(2*piece_margin + square_size * (this.x + move[0]), 2*piece_margin + square_size * (this.y + move[1]), target_size, 0, 2 * Math.PI, true);
+            this.ctx.fill();
         }
     }
     available_moves(){
@@ -213,9 +272,8 @@ class Piece {
                 this.own_reserved_positions()
             );
         for (var move of this.moves){
-            repeating_moves.push(move);
-            var cumulative_x = move[0] + move[0];
-            var cumulative_y = move[1] + move[1];
+            var cumulative_x = move[0];
+            var cumulative_y = move[1];
             searching_while:
                 while (this.x + cumulative_x >= 0
                     && this.y + cumulative_y >= 0
@@ -326,7 +384,7 @@ const main = () => {
         {
             const x = Math.floor(event.offsetX / square_size);
             const y = Math.floor(event.offsetY / square_size);
-            board.activate(x,y);
+            board.click(x,y);
         }
 
         var board = new Board(ctx);
