@@ -208,19 +208,29 @@ class Piece {
     }
     repeating_moves(){
         var repeating_moves = [];
+        var reserved_positions = this.enemy_reserved_positions()
+            .concat(
+                this.own_reserved_positions()
+            );
         for (var move of this.moves){
             repeating_moves.push(move);
             var cumulative_x = move[0] + move[0];
             var cumulative_y = move[1] + move[1];
-            while (this.x + cumulative_x >= 0
-                && this.y + cumulative_y >= 0
-                && this.x + cumulative_x < size 
-                && this.y + cumulative_y < size
-            ){
-                repeating_moves.push([cumulative_x,cumulative_y]);
-                cumulative_x += move[0];
-                cumulative_y += move[1];
-            }
+            searching_while:
+                while (this.x + cumulative_x >= 0
+                    && this.y + cumulative_y >= 0
+                    && this.x + cumulative_x < size
+                    && this.y + cumulative_y < size
+                ){
+                    for (var i = 0; i < reserved_positions.length; i++){
+                        if (this.x + cumulative_x == reserved_positions[i][0]
+                            && this.y + cumulative_y == reserved_positions[i][1])
+                            break searching_while;
+                    };
+                    repeating_moves.push([cumulative_x,cumulative_y]);
+                    cumulative_x += move[0];
+                    cumulative_y += move[1];
+                }
         };
         return repeating_moves;
     }
