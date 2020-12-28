@@ -133,7 +133,10 @@ class Board {
                 this.activated = new_activated;
         } else if (this.activated){
             // we didnt click any piece and one is activated, lets try move
-            this.move(x, y);
+            if (this.move(x, y)){
+                this.turn = (this.turn == 'white') ? 'black' : 'white';
+            }
+
         }
         this.draw();
     }
