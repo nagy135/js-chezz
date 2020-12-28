@@ -3,6 +3,12 @@ const size = 8;
 const piece_size = 40;
 const target_size = 20;
 const piece_margin = square_size / 2 - piece_size / 2;
+const player_turn_margin_left = 20;
+const player_turn_margin_top = 20;
+const player_turn_size = 40;
+const player_turn_arrow_size = 50;
+const player_turn_arrow_width = 5;
+const turn_arrow_margin_top = player_turn_margin_top + 110;
 const white =  'rgb(255,255,255)';
 const red =  'rgb(200,20,20)';
 const black =  'rgb(0,0,0)';
@@ -112,6 +118,24 @@ class Board {
         };
         const whole_size = size * square_size;
         this.ctx.strokeRect(0, 0, whole_size, whole_size);
+
+        // clean turn section before redraw
+        this.ctx.fillStyle = white;
+        this.ctx.fillRect(size * square_size + player_turn_margin_left, player_turn_margin_top, player_turn_size * 3, player_turn_size * 3);
+
+        // draw turn section
+        this.ctx.fillStyle = white;
+        this.ctx.fillRect(size * square_size + player_turn_margin_left, player_turn_margin_top, player_turn_size, player_turn_size);
+        this.ctx.fillStyle = black;
+        this.ctx.fillRect(size * square_size + player_turn_margin_left + player_turn_size, player_turn_margin_top, player_turn_size, player_turn_size);
+        this.ctx.strokeStyle = black;
+        this.ctx.strokeRect(size * square_size + player_turn_margin_left, player_turn_margin_top, player_turn_size * 2, player_turn_size);
+        
+        // draw turn sections arrow
+        var shift = player_turn_margin_left + Math.floor(player_turn_size / 2);
+        if (this.turn == 'black')
+            shift += player_turn_size;
+        canvas_arrow(this.ctx, size * square_size + shift, turn_arrow_margin_top, size * square_size + shift, turn_arrow_margin_top - player_turn_arrow_size );
     }
     create_players(){
         this.player1 = new Player('black', this.ctx);
@@ -180,6 +204,7 @@ class Piece {
     draw(color){
         this.ctx.fillStyle = (color == 0) ? black : white;
         this.ctx.fillRect(this.x*square_size + piece_margin, this.y*square_size + piece_margin, piece_size, piece_size);
+        this.ctx.strokeStyle = (color == 1) ? black : white;
         this.ctx.strokeRect(this.x*square_size + piece_margin, this.y*square_size + piece_margin, piece_size, piece_size);
 
         this.ctx.fillStyle = (color == 1) ? black : white;
@@ -396,6 +421,25 @@ const main = () => {
     } else {
         alert('cant get canvas context!');
     }
+}
+
+function canvas_arrow(context, fromx, fromy, tox, toy) {
+    var headlen = 15;
+    var dx = tox - fromx;
+    var dy = toy - fromy;
+    var angle = Math.atan2(dy, dx);
+    context.strokeStyle = black;
+    context.lineCap = 'round'
+    context.lineWidth = player_turn_arrow_width;
+    context.beginPath();
+    context.moveTo(fromx, fromy);
+    context.lineTo(tox, toy);
+    context.moveTo(tox, toy);
+    context.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+    context.moveTo(tox, toy);
+    context.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+    context.stroke();
+    context.lineWidth = 1;
 }
 
 main();
