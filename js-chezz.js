@@ -158,7 +158,6 @@ class Board {
         this.player2.init_game(this.player1);
     }
     click(x,y){
-        console.log(this.activated);
         if (this.activated)
             if (this.move(x, y)){
                 this.turn = (this.turn == 'white') ? 'black' : 'white';
@@ -172,7 +171,6 @@ class Board {
         } else {
             this.player2.deactivate_all();
         }
-        console.log(new_activated);
         if (new_activated){
             this.activated = new_activated;
         }
