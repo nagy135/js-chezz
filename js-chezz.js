@@ -8,9 +8,12 @@ const player_turn_margin_top = 20;
 const player_turn_size = 40;
 const player_turn_arrow_size = 50;
 const player_turn_arrow_width = 5;
+const target_line_width = 4;
 const turn_arrow_margin_top = player_turn_margin_top + 110;
 const white =  'rgb(255,255,255)';
 const red =  'rgb(200,20,20)';
+const target_black =  'rgba(0,0,0,0.8)';
+const target_white =  'rgba(255,255,255,0.8)';
 const black =  'rgb(0,0,0)';
 
 class Player {
@@ -72,23 +75,33 @@ class Player {
         for (var piece of this.pieces.pawns)
             piece.active = false;
     }
+    kill_piece_if_exists(x,y){
+        for (var piece of Object.keys(this.pieces))
+            if (this.pieces[piece].x == x && this.pieces[piece].y == y)
+                this.pieces[piece].dead = true;
+        for (var piece of this.pieces.pawns)
+            if (piece.x == x && piece.y == y)
+                piece.dead = true;
+    }
     activate(x,y){
         var activated = null;
         for (var piece of Object.keys(this.pieces))
-            if (this.pieces[piece].x == x && this.pieces[piece].y == y){
-                this.pieces[piece].active = ! this.pieces[piece].active;
-                activated = this.pieces[piece];
-            } else {
-                this.pieces[piece].active = false;
-            }
-            
+            if (!this.pieces[piece].dead)
+                if (this.pieces[piece].x == x && this.pieces[piece].y == y){
+                    this.pieces[piece].active = ! this.pieces[piece].active;
+                    activated = this.pieces[piece];
+                } else {
+                    this.pieces[piece].active = false;
+                }
+
         for (var piece of this.pieces.pawns)
-            if (piece.x == x && piece.y == y){
-                piece.active = ! piece.active;
-                activated = piece;
-            } else {
-                piece.active = false;
-            }
+            if (!piece.dead)
+                if (piece.x == x && piece.y == y){
+                    piece.active = ! piece.active;
+                    activated = piece;
+                } else {
+                    piece.active = false;
+                }
         return (activated && activated.active) ? activated : null;
     }
 }
@@ -130,7 +143,7 @@ class Board {
         this.ctx.fillRect(size * square_size + player_turn_margin_left + player_turn_size, player_turn_margin_top, player_turn_size, player_turn_size);
         this.ctx.strokeStyle = black;
         this.ctx.strokeRect(size * square_size + player_turn_margin_left, player_turn_margin_top, player_turn_size * 2, player_turn_size);
-        
+
         // draw turn sections arrow
         var shift = player_turn_margin_left + Math.floor(player_turn_size / 2);
         if (this.turn == 'black')
@@ -145,6 +158,13 @@ class Board {
         this.player2.init_game(this.player1);
     }
     click(x,y){
+        console.log(this.activated);
+        if (this.activated)
+            if (this.move(x, y)){
+                this.turn = (this.turn == 'white') ? 'black' : 'white';
+                this.draw();
+                return;
+            }
         var new_activated = this.player1.activate(x,y);
         if (!new_activated){
             new_activated = this.player2.activate(x,y);
@@ -152,15 +172,9 @@ class Board {
         } else {
             this.player2.deactivate_all();
         }
+        console.log(new_activated);
         if (new_activated){
-            if (new_activated != this.activated)
-                this.activated = new_activated;
-        } else if (this.activated){
-            // we didnt click any piece and one is activated, lets try move
-            if (this.move(x, y)){
-                this.turn = (this.turn == 'white') ? 'black' : 'white';
-            }
-
+            this.activated = new_activated;
         }
         this.draw();
     }
@@ -168,7 +182,7 @@ class Board {
         var player = (this.turn == 'black') ? this.player1 : this.player2;
         const activated = this.activated;
         if (activated.enemy.color == player.color){
-            alert('cant move enemy pieces');
+            return false;
         } else {
             for(let move of activated.available_moves()){
                 if (activated.x + move[0] == x
@@ -177,6 +191,7 @@ class Board {
                     activated.y = y;
                     activated.active = false;
                     this.activated = null;
+                    activated.enemy.kill_piece_if_exists(x,y);
                     return true;
                 }
             }
@@ -199,9 +214,12 @@ class Piece {
         this.player = player;
         this.enemy = enemy;
         this.active = false;
+        this.dead = false;
         this.label = "";
     }
     draw(color){
+        if (this.dead)
+            return;
         this.ctx.fillStyle = (color == 0) ? black : white;
         this.ctx.fillRect(this.x*square_size + piece_margin, this.y*square_size + piece_margin, piece_size, piece_size);
         this.ctx.strokeStyle = (color == 1) ? black : white;
@@ -211,13 +229,17 @@ class Piece {
         this.ctx.fillText(this.label, this.x*square_size + piece_margin + 7, this.y*square_size + piece_margin + 33);
 
         if (!this.active) return;
-        this.ctx.fillStyle = red;
+        this.ctx.lineWidth = target_line_width;
+        this.ctx.fillStyle = (this.player.color == 'black') ? target_black : target_white;
+        this.ctx.strokeStyle = red;
         for(let move of this.available_moves()){
             // this.ctx.fillRect(piece_margin + square_size * (this.x + move[0]), piece_margin + square_size * (this.y + move[1]), 30,30);
             this.ctx.beginPath();
             this.ctx.arc(2*piece_margin + square_size * (this.x + move[0]), 2*piece_margin + square_size * (this.y + move[1]), target_size, 0, 2 * Math.PI, true);
             this.ctx.fill();
+            this.ctx.stroke();
         }
+        this.ctx.lineWidth = 1;
     }
     available_moves(){
         var result = [];
@@ -236,16 +258,25 @@ class Piece {
     }
     reserved_positions(player){
         var positions = [];
-        positions.push([player.pieces.king.x, player.pieces.king.y]);
-        positions.push([player.pieces.queen.x, player.pieces.queen.y]);
-        positions.push([player.pieces.rookL.x, player.pieces.rookL.y]);
-        positions.push([player.pieces.rookR.x, player.pieces.rookR.y]);
-        positions.push([player.pieces.bishopL.x, player.pieces.bishopL.y]);
-        positions.push([player.pieces.bishopR.x, player.pieces.bishopR.y]);
-        positions.push([player.pieces.knightL.x, player.pieces.knightL.y]);
-        positions.push([player.pieces.knightR.x, player.pieces.knightR.y]);
+        if (!player.pieces.king.dead)
+            positions.push([player.pieces.king.x, player.pieces.king.y]);
+        if (!player.pieces.queen.dead)
+            positions.push([player.pieces.queen.x, player.pieces.queen.y]);
+        if (!player.pieces.rookL.dead)
+            positions.push([player.pieces.rookL.x, player.pieces.rookL.y]);
+        if (!player.pieces.rookR.dead)
+            positions.push([player.pieces.rookR.x, player.pieces.rookR.y]);
+        if (!player.pieces.bishopL.dead)
+            positions.push([player.pieces.bishopL.x, player.pieces.bishopL.y]);
+        if (!player.pieces.bishopR.dead)
+            positions.push([player.pieces.bishopR.x, player.pieces.bishopR.y]);
+        if (!player.pieces.knightL.dead)
+            positions.push([player.pieces.knightL.x, player.pieces.knightL.y]);
+        if (!player.pieces.knightR.dead)
+            positions.push([player.pieces.knightR.x, player.pieces.knightR.y]);
         for (var pawn of player.pieces.pawns)
-            positions.push([pawn.x, pawn.y]);
+            if (!pawn.dead)
+                positions.push([pawn.x, pawn.y]);
         return positions;
     }
     available_move(move){
@@ -275,14 +306,14 @@ class Piece {
         // }}}
 
         /// {{{ check enemy pieces
-        const enemy_positions = this.enemy_reserved_positions();
-        for (let key in enemy_positions){
-            const reserved = enemy_positions[key];
-            if (this.x + x == reserved[0] && this.y + y == reserved[1])
-                fits = false;
-        };
-        if (!fits)
-            return false;
+        // const enemy_positions = this.enemy_reserved_positions();
+        // for (let key in enemy_positions){
+        //     const reserved = enemy_positions[key];
+        //     if (this.x + x == reserved[0] && this.y + y == reserved[1])
+        //         fits = false;
+        // };
+        // if (!fits)
+        //     return false;
         // }}}
 
         return true;
@@ -295,10 +326,8 @@ class Piece {
     }
     repeating_moves(){
         var repeating_moves = [];
-        var reserved_positions = this.enemy_reserved_positions()
-            .concat(
-                this.own_reserved_positions()
-            );
+        var enemy_reserved_positions = this.enemy_reserved_positions()
+        var own_reserved_positions = this.own_reserved_positions()
         for (var move of this.moves){
             var cumulative_x = move[0];
             var cumulative_y = move[1];
@@ -308,10 +337,17 @@ class Piece {
                     && this.x + cumulative_x < size
                     && this.y + cumulative_y < size
                 ){
-                    for (var i = 0; i < reserved_positions.length; i++){
-                        if (this.x + cumulative_x == reserved_positions[i][0]
-                            && this.y + cumulative_y == reserved_positions[i][1])
+                    for (var i = 0; i < own_reserved_positions.length; i++){
+                        if (this.x + cumulative_x == own_reserved_positions[i][0]
+                            && this.y + cumulative_y == own_reserved_positions[i][1])
                             break searching_while;
+                    };
+                    for (var i = 0; i < enemy_reserved_positions.length; i++){
+                        if (this.x + cumulative_x == enemy_reserved_positions[i][0]
+                            && this.y + cumulative_y == enemy_reserved_positions[i][1]){
+                            repeating_moves.push([cumulative_x,cumulative_y]);
+                            break searching_while;
+                        }
                     };
                     repeating_moves.push([cumulative_x,cumulative_y]);
                     cumulative_x += move[0];
